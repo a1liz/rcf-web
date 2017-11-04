@@ -14,16 +14,16 @@
             </Col>
             <Col span="8">
             <Menu class="menu" mode="horizontal" :theme="theme1" active-name="1">
-                <MenuItem name="1" v-on:click="test('Introduce')">
+                <MenuItem name="1" v-on:click.native="test('Introduce')">
                     Introduce
                 </MenuItem>
-                <MenuItem name="2" v-on:click="test('Demo')">
+                <MenuItem name="2" v-on:click.native="test('Demo')">
                     Demo
                 </MenuItem>
-                <MenuItem name="3" v-on:click="test('GetPic')">
+                <MenuItem name="3" v-on:click.native="test('GetPic')">
                     GetPic
                 </MenuItem>
-                <MenuItem name="4" v-on:click="test('Login')">
+                <MenuItem name="4" v-on:click.native="test('Login')">
                     Login
                 </MenuItem>
             </Menu>
@@ -59,7 +59,6 @@ export default {
   methods: {
       test: function (name) {
           this.page = name;
-          alert(name);
       }
   }
 }
