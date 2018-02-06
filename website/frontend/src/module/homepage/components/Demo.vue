@@ -11,39 +11,31 @@
             <Button type="primary" onclick="window.location.href='https://github.com/yun-liu/rcf'">@Github</Button>
             </Col>
         </Row>
-        <Card :bordered="false" class="upload-card">
-            <p slot="title">Upload Your Photos</p>
-            <Row type="flex" justify="center" align="middle" class="code-row-bg">
-            <Col span="18">
-                <div class="demo-upload-list" v-for="item in uploadList">
-                    <template v-if="item.status === 'finished'">
-                        <img :src="item.url">
-                        <div class="demo-upload-list-cover">
-                            <Icon type="ios-eye-outline" @click.native="handleView(item.name)"></Icon>
-                            <Icon type="ios-trash-outline" @click.native="handleRemove(item)"></Icon>
-                        </div>
-                    </template>
-                    <template v-else>
-                        <Progress v-if="item.showProgress" :percent="item.percentage" hide-info></Progress>
-                    </template>
-                </div>
-                <Upload ref="upload" :show-upload-list="false" :default-file-list="defaultList" :on-success="handleSuccess" :format="['jpg','jpeg','png']" :maxsize="2048" :on-format-error="handleFormatError" :on-exceeded-size="handleMaxSize" :before-upload="handleBeforeUpload" multiple type="drag" action = "/static/img/" style="display: inline-block;width:58px;">
-                <div style="width:58px;height:58px;line-height:58px;">
-                    <Icon type="camera" size="20"></Icon>
-                </div>
+        <Card :bordered="false" class="card">
+            <p slot="title">Upload a picture</p>
+            <div>
+                <Upload
+                    action=""
+                    :before-upload="handlePicture"
+                    >
+                    <Button type="ghost" icon="ios-cloud-upload-outline">Select the picture to upload</Button>
                 </Upload>
-                <Modal title="View Image" v-model="visible">
-                    <img :src="'localhost:8000/' + imgName + '/large'" v-if="visible" style="width: 100%">
-                </Modal>
-            </Col>
-            <Col span="3" offset="3">
-                <Button type="primary">上传</Button>
-            </Col>
-            </Row>
+                <div><img :src="picUpload" class="image" v-show="picShow" /></div>
+                <Button type="ghost" icon="android-sync" v-show="picShow">Translate it!</Button>
+            </div>
         </Card>
-        <Card :bordered="false">
-            <p slot="title">Result</p>
-            
+        <Card :bordered="false" class="card">
+            <p slot="title">Upload a package</p>
+            <div>
+                <Upload
+                    action=""
+                    :before-upload="handlePackage"
+                    >
+                    <Button type="ghost" icon="ios-cloud-upload-outline">Select the package to upload</Button>
+                </Upload>
+                <div v-show="zipShow">{{ upload }}</div>
+                <div v-if="packagefile !== null">Upload file: {{ packagefile.name }} <Button type="text" @click="uploadPackage" :loading="loadingStatus">{{ loadingStatus ? 'Uploading' : 'Click to upload' }}</Button></div>
+            </div>
         </Card>
     </div>
 </template>
@@ -56,44 +48,118 @@ export default {
             ],
             imgName: '',
             visible: false,
-            uploadList: []
+            picturefile: null,
+            packagefile: null,
+            loadingStatus: false,
+            picUpload: '',
+            zipUpload: '',
+            picShow: false,
+            zipShow: false,
         }
     },
     methods: {
-        handleView(name) {
-            this.imgName = name;
-            this.visible = true;
-        },
-        handleRemove(file) {
-            const fileList = this.$refs.upload.fileList;
-            this.$refs.upload.fileList.splice(fileList.indexOf(file),1);
-        },
-        handleSuccess(res, file) {
-            file.url=""
-        },
+        getCookie (cName) {
+        if (document.cookie.length > 0) {
+          let cStart = document.cookie.indexOf(cName + '=')
+          if (cStart !== -1) {
+            cStart = cStart + cName.length + 1
+            let cEnd = document.cookie.indexOf(';', cStart)
+            if (cEnd === -1) {
+              cEnd = document.cookie.length
+            }
+            return unescape(document.cookie.substring(cStart, cEnd))
+          }
+        }
+        return ''
+      },
         handleFormatError(file) {
             this.$Notice.warning({
                 title: 'The file format is incorrect',
-                desc: 'File format of ' + file.name + 'is incorrect, please select jpg or png.'
+                desc: 'File format of ' + file.name + 'is incorrect, please select zip.'
             });
-        },
-        handleMaxSize (file) {
-            this.$Notice.warning({
-                title: 'Exceeding file size limit',
-                desc: 'File  ' + file.name + ' is too large, no more than 2M.'
-            });
-        },
-        handleBeforeUpload () {
-            const check = this.uploadList.length < 5;
-            if (!check) {
-                this.$Notice.warning({
-                    title: 'Up to five pictures can be uploaded.'
-                });
-            }
-            return check;
         },
         mounted() {
             this.uploadList = this.$refs.upload.fileList;
+        },
+        handlePicture(file) {
+            this.picShow = false
+            let patt = /.*\.(png|jpg|jpeg)/i
+            if (!patt.test(file.name)) {
+                this.$Notice.warning({
+                    title: 'The file format is incorrect',
+                    desc: 'file format of ' + file.name + ' is incorrect, please select jpg/jpeg/png'
+                })
+                return false
+            }
+            if (file.size > 3 * 1000 * 1000) {
+                this.$Notice.warning({
+                    title: 'The file size is too large',
+                    desc: 'Please choose a file less than 3MB.'
+                })
+                return false
+            }
+            let pic = new FormData()
+            pic.append('pic',file)
+            fetch('/api/user/storepic/', {
+                method: 'post',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken'),
+                    'Accept': 'application/json'
+                },
+                body : pic
+            }).then((res) => res.json()).then((res) => {
+                this.picUpload = res['url']
+            })
+            setTimeout(() => {
+                this.$Message.success('Success')
+                this.picShow = true
+            }, 1500)
+            return false
+        },
+        handlePackage(file) {
+            this.zipShow = false
+            let patt = /.*\.(zip|rar)/i
+            // 检测文件类型
+            if (!patt.test(file.name)) {
+                this.$Notice.warning({
+                    title: 'The file format is incorrect',
+                    desc: 'file format of  ' + file.name + '  is incorrect, please select zip/rar.'
+                })
+                return false
+            }
+            if (file.size > 20 * 1000 * 1000) {
+                this.$Notice.warning({
+                    title: 'The file size is too large',
+                    desc: 'Please choose a file less than 20MB.'
+                })
+                return false
+            }
+            this.packagefile = file
+            return false
+        },
+        uploadPackage() {
+            let zip = new FormData()
+            zip.append('zip',this.packagefile)
+            fetch('/api/user/storezip/', {
+                method: 'post',
+                credentials: 'same-origin',
+                headers: {
+                    'X-CSRFToken': this.getCookie('csrftoken'),
+                    'Accept': 'application/json'
+                },
+                body : zip
+            }).then((res) => res.json()).then((res) => {
+                this.zipUpload = res['url']
+            })
+            this.loadingStatus = true
+            setTimeout(() => {
+                this.packagefile = null;
+                this.loadingStatus = false;
+                this.$Message.success('Success')
+                this.zipShow = true
+            }, 1500)
+            return false
         }
     }
 }
@@ -139,6 +205,12 @@ export default {
     margin-bottom: 50px;
 }
 .upload-card {
-    margin-bottom: 50px;
+    margin-bottom: 100px;
+}
+.image {
+    max-height: 100px;
+}
+.card {
+    margin-top: 20px;
 }
 </style>
