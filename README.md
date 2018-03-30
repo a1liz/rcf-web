@@ -48,8 +48,11 @@ DATABASES = {
 ## 整体架构部分
 
 前端采用的是: [Vue.js](https://cn.vuejs.org/) + [iView](https://www.iviewui.com/)（UI组件），主要代码段位于 `website/frontend/src`，通过Vue.js生成的前端文件位于`website/frontend/dist`
+
 后端采用的是: Django(Python)，有关数据库配置以及后端API的部分在`website/backend/`，这边可以通过`python manage.py migrate`自动生成数据库内容
+
 静态文件放在`website/static`
+
 关于Django的各种配置文件主要在`website/website`
 
 ## 关于 docker
